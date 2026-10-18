@@ -103,6 +103,17 @@ public class MainActivity extends Activity {
         });
         row2.addView(tryA);
 
+        Button diag = new Button(this);
+        diag.setText("3) Diagnóstico da tela");
+        diag.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (!AutoSettingsService.requestDump()) {
+                    Log.add(MainActivity.this, "Ative primeiro 'Hora Fix' em Acessibilidade.");
+                }
+            }
+        });
+        row2.addView(diag);
+
         ScrollView sv = new ScrollView(this);
         logView = new TextView(this);
         logView.setTextSize(13);

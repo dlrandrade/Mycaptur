@@ -45,7 +45,8 @@ public class SyncService extends Service {
     }
 
     private void work(Context app) throws InterruptedException {
-        Log.add(app, "Iniciando. Relógio atual do aparelho está " + (clockLooksWrong() ? "ERRADO (antes de 2025)." : "com ano plausível."));
+        Log.add(app, "Iniciando. Relógio " + (clockLooksWrong() ? "ERRADO (antes de 2025)." : "com ano plausível.")
+                + " Acessibilidade: " + (AutoSettingsService.isActive() ? "ativa." : "inativa."));
         long startedAt = SystemClock.elapsedRealtime();
         int setFailures = 0;
         Thread.sleep(3000);
@@ -79,8 +80,9 @@ public class SyncService extends Service {
 
     /** Último recurso sem root/PC: o serviço de acessibilidade mexe nas Configurações por você. */
     private boolean viaAccessibility(Context app) throws InterruptedException {
+        for (int i = 0; i < 30 && !AutoSettingsService.isActive(); i++) Thread.sleep(2000); // pós-boot
         if (!AutoSettingsService.request()) {
-            Log.add(app, "Acessibilidade do Hora Fix não está ativada (Configurações > Acessibilidade).");
+            Log.add(app, "Acessibilidade do Hora Fix NÃO está ativa (Configurações > Acessibilidade).");
             return false;
         }
         for (int i = 0; i < 40 && (i < 2 || AutoSettingsService.isRunning()); i++) Thread.sleep(2000);

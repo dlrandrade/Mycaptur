@@ -31,6 +31,7 @@ public class AutoSettingsService extends AccessibilityService {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean running;
+    private boolean dumpMode;
     private int ticks;
     private int phase;          // 0 = ainda não mexi, 1 = saí de "rede", 2 = voltei para "rede"
     private long lastRowClick;
@@ -38,7 +39,8 @@ public class AutoSettingsService extends AccessibilityService {
     private final Runnable tick = new Runnable() {
         public void run() {
             if (!running) return;
-            if (++ticks > 45) {
+            if (++ticks > 45 && ticks < 900) {
+                dump(getRootInActiveWindow());
                 finish("tempo esgotado (não achei a tela esperada).");
                 return;
             }
@@ -53,6 +55,19 @@ public class AutoSettingsService extends AccessibilityService {
 
     static boolean isActive() {
         return instance != null;
+    }
+
+    /** Grava no log o que o serviço enxerga na tela de Data e hora (e no diálogo ao tocar na linha). */
+    static boolean requestDump() {
+        final AutoSettingsService s = instance;
+        if (s == null) return false;
+        s.handler.post(new Runnable() {
+            public void run() {
+                s.dumpMode = true;
+                s.begin();
+            }
+        });
+        return true;
     }
 
     static boolean isRunning() {
@@ -98,7 +113,7 @@ public class AutoSettingsService extends AccessibilityService {
         ticks = 0;
         phase = 0;
         lastRowClick = 0;
-        Log.add(this, "Acessibilidade: abrindo Data e hora nas Configurações...");
+        Log.add(this, dumpMode ? "Diagnóstico: abrindo Data e hora..." : "Acessibilidade: abrindo Data e hora nas Configurações...");
         try {
             Intent i = new Intent(Settings.ACTION_DATE_SETTINGS);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -114,16 +129,31 @@ public class AutoSettingsService extends AccessibilityService {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (root == null) return;
 
+        if (dumpMode) {
+            if (ticks == 3) {
+                dump(root);
+                AccessibilityNodeInfo r = findText(root, AUTO_ROW, 0);
+                if (r != null) click(r);
+                else Log.add(this, "Diagnóstico: linha 'Data e hora automáticas' NÃO encontrada.");
+            } else if (ticks >= 6) {
+                dump(root);
+                dumpMode = false;
+                finish("diagnóstico concluído.");
+            }
+            return;
+        }
+
         List<AccessibilityNodeInfo> choices = new ArrayList<AccessibilityNodeInfo>();
         collectChoices(root, choices, 0);
 
         if (!choices.isEmpty()) {
             // diálogo com as opções (rede / GPS / desativado)
             if (phase == 0) {
-                AccessibilityNodeInfo opt = pick(choices, OPT_OFF);
-                if (opt == null) opt = pick(choices, OPT_GPS);
+                AccessibilityNodeInfo opt = pick(choices, OPT_GPS);
+                if (opt == null) opt = pick(choices, OPT_OFF);
                 if (opt == null) {
-                    finish("o diálogo não tem opção 'Desativado' nem 'GPS'.");
+                    dump(root);
+                    finish("o diálogo não tem opção 'GPS' nem 'Desativado'.");
                     return;
                 }
                 click(opt);
@@ -133,6 +163,7 @@ public class AutoSettingsService extends AccessibilityService {
             } else if (phase == 1) {
                 AccessibilityNodeInfo opt = pick(choices, OPT_NET);
                 if (opt == null) {
+                    dump(root);
                     finish("não achei a opção de rede para voltar.");
                     return;
                 }
@@ -180,6 +211,26 @@ public class AutoSettingsService extends AccessibilityService {
             click(clickable); // abre o diálogo
             lastRowClick = now;
         }
+    }
+
+    private void dump(AccessibilityNodeInfo root) {
+        if (root == null) {
+            Log.add(this, "Tela: (sem conteúdo acessível)");
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        dumpInto(root, sb, 0);
+        Log.add(this, "Tela: " + (sb.length() > 700 ? sb.substring(0, 700) : sb.toString()));
+    }
+
+    private static void dumpInto(AccessibilityNodeInfo n, StringBuilder sb, int depth) {
+        if (n == null || depth > 25 || sb.length() > 700) return;
+        String t = label(n);
+        if (t.length() > 0) {
+            String cls = n.getClassName() == null ? "?" : n.getClassName().toString();
+            sb.append(cls.substring(cls.lastIndexOf('.') + 1)).append(':').append(t).append(" | ");
+        }
+        for (int i = 0; i < n.getChildCount(); i++) dumpInto(n.getChild(i), sb, depth + 1);
     }
 
     private void finish(String msg) {
