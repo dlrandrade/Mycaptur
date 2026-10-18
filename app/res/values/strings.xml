@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_desc">Permite ao Hora Fix abrir Data e hora nas Configurações e alternar \"Data e hora automáticas\" para corrigir o relógio.</string>
+</resources>

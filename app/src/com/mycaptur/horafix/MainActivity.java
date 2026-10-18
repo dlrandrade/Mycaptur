@@ -75,6 +75,34 @@ public class MainActivity extends Activity {
         });
         row.addView(clear);
 
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        root.addView(row2);
+
+        Button acc = new Button(this);
+        acc.setText("1) Ativar acessibilidade");
+        acc.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                } catch (Throwable t) {
+                    Log.add(MainActivity.this, "Esta central não tem tela de Acessibilidade: " + t);
+                }
+            }
+        });
+        row2.addView(acc);
+
+        Button tryA = new Button(this);
+        tryA.setText("2) Testar passo automático");
+        tryA.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (!AutoSettingsService.request()) {
+                    Log.add(MainActivity.this, "Ative primeiro 'Hora Fix' em Acessibilidade.");
+                }
+            }
+        });
+        row2.addView(tryA);
+
         ScrollView sv = new ScrollView(this);
         logView = new TextView(this);
         logView.setTextSize(13);
@@ -94,8 +122,9 @@ public class MainActivity extends Activity {
                 + "\nRoot: " + rootState
                 + "\nSET_TIME: " + (setTime ? "concedida" : "não")
                 + "\nWRITE_SECURE_SETTINGS: " + (secure ? "concedida" : "não")
-                + (secure || setTime ? "" :
-                "\n\nSem root, rode UMA vez no computador (USB/ADB):\nadb shell pm grant com.mycaptur.horafix android.permission.WRITE_SECURE_SETTINGS")
+                + "\nAcessibilidade: " + (AutoSettingsService.isActive() ? "ATIVA" : "desativada")
+                + (secure || setTime || AutoSettingsService.isActive() ? "" :
+                "\n\nSem root nem computador: toque em 1) e ative 'Hora Fix' na lista de Acessibilidade.")
                 + "\n\nRegistro:");
         logView.setText(Log.read(this));
     }

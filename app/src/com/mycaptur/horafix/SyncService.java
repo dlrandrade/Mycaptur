@@ -65,6 +65,9 @@ public class SyncService extends Service {
             if (new TimeSetter(app, t, fetchedElapsed).apply()) {
                 return;
             }
+            if (viaAccessibility(app)) {
+                return;
+            }
             if (++setFailures >= MAX_SET_FAILURES) {
                 Log.add(app, "NÃO CONSEGUI ajustar a hora. É preciso root, ou conceder WRITE_SECURE_SETTINGS via adb (veja a tela do app).");
                 return;
@@ -72,6 +75,25 @@ public class SyncService extends Service {
             Thread.sleep(15000);
         }
         Log.add(app, "Sem internet por 15 minutos. Desisti desta vez.");
+    }
+
+    /** Último recurso sem root/PC: o serviço de acessibilidade mexe nas Configurações por você. */
+    private boolean viaAccessibility(Context app) throws InterruptedException {
+        if (!AutoSettingsService.request()) {
+            Log.add(app, "Acessibilidade do Hora Fix não está ativada (Configurações > Acessibilidade).");
+            return false;
+        }
+        for (int i = 0; i < 40 && (i < 2 || AutoSettingsService.isRunning()); i++) Thread.sleep(2000);
+        for (int i = 0; i < 12; i++) { // dá tempo para a rede entregar a hora
+            long t = TimeSource.fetch(app);
+            if (t > 0 && Math.abs(t - System.currentTimeMillis()) < 60000) {
+                Log.add(app, "OK: relógio corrigido pelo passo automático nas Configurações.");
+                return true;
+            }
+            Thread.sleep(5000);
+        }
+        Log.add(app, "Mexi nas Configurações, mas o relógio continuou errado.");
+        return false;
     }
 
     @Override
