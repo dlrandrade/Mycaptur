@@ -114,6 +114,25 @@ public class MainActivity extends Activity {
         });
         row2.addView(diag);
 
+        Button pick = new Button(this);
+        pick.setText("4) App para abrir depois");
+        pick.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                final java.util.List<TargetApp.Entry> apps = TargetApp.installed(MainActivity.this);
+                String[] names = new String[apps.size()];
+                for (int i = 0; i < names.length; i++) names[i] = apps.get(i).label;
+                new android.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Abrir depois de corrigir a hora")
+                        .setItems(names, new android.content.DialogInterface.OnClickListener() {
+                            public void onClick(android.content.DialogInterface d, int which) {
+                                TargetApp.choose(MainActivity.this, apps.get(which).pkg);
+                                Log.add(MainActivity.this, "App final: " + apps.get(which).label);
+                            }
+                        }).show();
+            }
+        });
+        row2.addView(pick);
+
         ScrollView sv = new ScrollView(this);
         logView = new TextView(this);
         logView.setTextSize(13);
@@ -133,11 +152,17 @@ public class MainActivity extends Activity {
                 + "\nRoot: " + rootState
                 + "\nSET_TIME: " + (setTime ? "concedida" : "não")
                 + "\nWRITE_SECURE_SETTINGS: " + (secure ? "concedida" : "não")
+                + "\nApp a abrir depois: " + targetLabel()
                 + "\nAcessibilidade: " + (AutoSettingsService.isActive() ? "ATIVA" : "desativada")
                 + (secure || setTime || AutoSettingsService.isActive() ? "" :
                 "\n\nSem root nem computador: toque em 1) e ative 'Hora Fix' na lista de Acessibilidade.")
                 + "\n\nRegistro:");
         logView.setText(Log.read(this));
+    }
+
+    private String targetLabel() {
+        TargetApp.Entry e = TargetApp.current(this);
+        return e == null ? "NÃO ENCONTRADO (toque em 4)" : e.label;
     }
 
     @Override

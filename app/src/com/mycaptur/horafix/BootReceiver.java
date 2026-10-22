@@ -15,6 +15,6 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
         Log.add(context, "Disparo: " + action);
-        context.startService(new Intent(context, SyncService.class));
+        context.startService(new Intent(context, SyncService.class).putExtra(SyncService.EXTRA_LAUNCH, true));
     }
 }

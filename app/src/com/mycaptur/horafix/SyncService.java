@@ -13,7 +13,10 @@ public class SyncService extends Service {
     private static final long MAX_WAIT_MS = 15L * 60 * 1000; // espera o hotspot/internet por até 15 min
     private static final int MAX_SET_FAILURES = 3;
 
+    static final String EXTRA_LAUNCH = "launch";
+
     private static volatile boolean running;
+    private static volatile boolean launchAfter;
 
     static boolean clockLooksWrong() {
         return System.currentTimeMillis() < YEAR_2025;
@@ -21,6 +24,7 @@ public class SyncService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH, false)) launchAfter = true;
         if (!running) {
             running = true;
             final Context app = getApplicationContext();
@@ -34,6 +38,15 @@ public class SyncService extends Service {
                     } catch (Throwable t) {
                         Log.add(app, "Erro inesperado: " + t);
                     } finally {
+                        if (launchAfter) {
+                            launchAfter = false;
+                            try {
+                                Thread.sleep(2500); // deixa a tela inicial assentar após o passo nas Configurações
+                                TargetApp.launch(app);
+                            } catch (Throwable t) {
+                                Log.add(app, "Erro ao abrir o app final: " + t);
+                            }
+                        }
                         if (wl.isHeld()) wl.release();
                         running = false;
                         stopSelf();
